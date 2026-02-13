@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extrator eSocial XML</title>
+</head>
+<body>
+    <h2>Extrator de XML para Excel</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label>Tag alvo:</label>
+        <input type="text" name="tag" value="infoRubrica" required>
+        <br><br>
+        <label>Arquivo XML ou ZIP:</label>
+        <input type="file" name="arquivo" multiple required>
+        <br><br>
+        <button type="submit">Processar</button>
+    </form>
+</body>
+</html>
