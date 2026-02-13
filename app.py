@@ -25,11 +25,42 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
 
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
-            registro = {"Arquivo_Origem": filename}
-            for filho in elem.iter():
-                if filho != elem:
-                    registro[limpar_tag(filho.tag)] = filho.text.strip() if filho.text else ""
-            dados_extraidos.append(registro)
+
+            dados_base = {"Arquivo_Origem": filename}
+            filhos = list(elem)
+
+            # Agrupar filhos por nome
+            agrupados = {}
+            for filho in filhos:
+                nome = limpar_tag(filho.tag)
+                agrupados.setdefault(nome, []).append(filho)
+
+            # Separar filhos simples e repetidos
+            filhos_repetidos = {}
+            for nome, lista in agrupados.items():
+                if len(lista) == 1:
+                    dados_base[nome] = lista[0].text.strip() if lista[0].text else ""
+                else:
+                    filhos_repetidos[nome] = lista
+
+            # Se não houver repetidos → linha única
+            if not filhos_repetidos:
+                dados_extraidos.append(dados_base)
+
+            # Se houver repetidos → explode
+            else:
+                for nome_rep, lista_rep in filhos_repetidos.items():
+                    for item in lista_rep:
+                        nova_linha = dados_base.copy()
+
+                        # se o repetido tiver filhos internos
+                        if list(item):
+                            for sub in item:
+                                nova_linha[f"{nome_rep}_{limpar_tag(sub.tag)}"] = sub.text.strip() if sub.text else ""
+                        else:
+                            nova_linha[nome_rep] = item.text.strip() if item.text else ""
+
+                        dados_extraidos.append(nova_linha)
 
     return dados_extraidos
 
@@ -102,6 +133,7 @@ def index():
 
 if __name__ == "__main__":
     app.run()
+
 
 
 
