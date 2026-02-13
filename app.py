@@ -23,46 +23,56 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
         flash(f"Erro ao processar o XML do arquivo '{filename}'. Arquivo inválido.", "danger")
         return []
 
+    def explode_element(element, parent_data=None, prefix=""):
+        if parent_data is None:
+            parent_data = {}
+
+        children = list(element)
+
+        # Se não tem filhos → é folha
+        if not children:
+            parent_data[prefix] = element.text.strip() if element.text else ""
+            return [parent_data]
+
+        # Agrupar filhos por nome
+        agrupados = {}
+        for child in children:
+            nome = limpar_tag(child.tag)
+            agrupados.setdefault(nome, []).append(child)
+
+        linhas = [parent_data]
+
+        for nome, lista in agrupados.items():
+            novas_linhas = []
+
+            for linha in linhas:
+                if len(lista) == 1:
+                    # Filho único
+                    novo_prefixo = f"{prefix}_{nome}" if prefix else nome
+                    resultado = explode_element(lista[0], linha.copy(), novo_prefixo)
+                    novas_linhas.extend(resultado)
+                else:
+                    # Filho repetido → explode
+                    for item in lista:
+                        novo_prefixo = f"{prefix}_{nome}" if prefix else nome
+                        resultado = explode_element(item, linha.copy(), novo_prefixo)
+                        novas_linhas.extend(resultado)
+
+            linhas = novas_linhas
+
+        return linhas
+
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
 
-            dados_base = {"Arquivo_Origem": filename}
-            filhos = list(elem)
+            linhas = explode_element(elem)
 
-            # Agrupar filhos por nome
-            agrupados = {}
-            for filho in filhos:
-                nome = limpar_tag(filho.tag)
-                agrupados.setdefault(nome, []).append(filho)
-
-            # Separar filhos simples e repetidos
-            filhos_repetidos = {}
-            for nome, lista in agrupados.items():
-                if len(lista) == 1:
-                    dados_base[nome] = lista[0].text.strip() if lista[0].text else ""
-                else:
-                    filhos_repetidos[nome] = lista
-
-            # Se não houver repetidos → linha única
-            if not filhos_repetidos:
-                dados_extraidos.append(dados_base)
-
-            # Se houver repetidos → explode
-            else:
-                for nome_rep, lista_rep in filhos_repetidos.items():
-                    for item in lista_rep:
-                        nova_linha = dados_base.copy()
-
-                        # se o repetido tiver filhos internos
-                        if list(item):
-                            for sub in item:
-                                nova_linha[f"{nome_rep}_{limpar_tag(sub.tag)}"] = sub.text.strip() if sub.text else ""
-                        else:
-                            nova_linha[nome_rep] = item.text.strip() if item.text else ""
-
-                        dados_extraidos.append(nova_linha)
+            for linha in linhas:
+                linha["Arquivo_Origem"] = filename
+                dados_extraidos.append(linha)
 
     return dados_extraidos
+
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -133,6 +143,7 @@ def index():
 
 if __name__ == "__main__":
     app.run()
+
 
 
 
