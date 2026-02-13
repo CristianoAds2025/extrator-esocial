@@ -73,24 +73,25 @@
                   {% endif %}
                 {% endwith %}
 
-                <form method="POST" enctype="multipart/form-data" id="formExtracao">
+                <!-- Mensagem de progresso -->
+                <div id="mensagemProgresso" class="alert alert-info" style="display:none;">
+                    Processando... Aguarde.
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label class="form-label">Arquivo XML ou ZIP</label>
-                        <input type="file" name="arquivo" id="arquivo" class="form-control" required>
+                        <input type="file" name="arquivo" class="form-control" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Tag a ser extraída</label>
-                        <input type="text" name="tag" id="tag" class="form-control" value="infoRubrica" required>
+                        <input type="text" name="tag" class="form-control" value="infoRubrica" required>
                     </div>
 
-                    <div class="d-grid gap-2">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
                             Processar Arquivo
-                        </button>
-
-                        <button type="button" class="btn btn-secondary" onclick="limparFormulario()">
-                            Limpar
                         </button>
                     </div>
                 </form>
@@ -108,16 +109,20 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Script para limpar formulário -->
+<!-- Script para exibir progresso -->
 <script>
-    function limparFormulario() {
-        document.getElementById("arquivo").value = "";
-        document.getElementById("tag").value = "";
-    }
+    const form = document.querySelector("form");
+    const progressoMsg = document.getElementById("mensagemProgresso");
+
+    form.addEventListener("submit", function() {
+        progressoMsg.style.display = "block";
+    });
 </script>
 
 </body>
 </html>
+
+
 
 
 
