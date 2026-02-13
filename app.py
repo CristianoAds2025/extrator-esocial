@@ -23,54 +23,15 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
         flash(f"Erro ao processar o XML do arquivo '{filename}'. Arquivo inválido.", "danger")
         return []
 
-    def flatten_element(element, parent_path="", base_data=None):
-        if base_data is None:
-            base_data = {}
-
-        children = list(element)
-
-        # Se não tiver filhos → é folha
-        if not children:
-            coluna = parent_path
-            base_data[coluna] = element.text.strip() if element.text else ""
-            return [base_data]
-
-        resultados = []
-
-        # Agrupa filhos por nome para detectar repetição
-        filhos_por_nome = {}
-        for child in children:
-            nome = limpar_tag(child.tag)
-            filhos_por_nome.setdefault(nome, []).append(child)
-
-        for nome, lista_filhos in filhos_por_nome.items():
-            if len(lista_filhos) == 1:
-                novo_path = f"{parent_path}_{nome}" if parent_path else nome
-                resultados.extend(
-                    flatten_element(lista_filhos[0], novo_path, base_data.copy())
-                )
-            else:
-                # Caso repetido → explode linhas
-                for item in lista_filhos:
-                    novo_path = f"{parent_path}_{nome}" if parent_path else nome
-                    resultados.extend(
-                        flatten_element(item, novo_path, base_data.copy())
-                    )
-
-        return resultados
-
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
-
-            linhas = flatten_element(elem)
-
-            for linha in linhas:
-                linha["Arquivo_Origem"] = filename
-                dados_extraidos.append(linha)
+            registro = {"Arquivo_Origem": filename}
+            for filho in elem.iter():
+                if filho != elem:
+                    registro[limpar_tag(filho.tag)] = filho.text.strip() if filho.text else ""
+            dados_extraidos.append(registro)
 
     return dados_extraidos
-
-
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -141,6 +102,8 @@ def index():
 
 if __name__ == "__main__":
     app.run()
+
+
 
 
 
