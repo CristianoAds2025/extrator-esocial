@@ -23,35 +23,53 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
         flash(f"Erro ao processar o XML do arquivo '{filename}'. Arquivo inválido.", "danger")
         return []
 
+    def flatten_element(element, parent_path="", base_data=None):
+        if base_data is None:
+            base_data = {}
+
+        children = list(element)
+
+        # Se não tiver filhos → é folha
+        if not children:
+            coluna = parent_path
+            base_data[coluna] = element.text.strip() if element.text else ""
+            return [base_data]
+
+        resultados = []
+
+        # Agrupa filhos por nome para detectar repetição
+        filhos_por_nome = {}
+        for child in children:
+            nome = limpar_tag(child.tag)
+            filhos_por_nome.setdefault(nome, []).append(child)
+
+        for nome, lista_filhos in filhos_por_nome.items():
+            if len(lista_filhos) == 1:
+                novo_path = f"{parent_path}_{nome}" if parent_path else nome
+                resultados.extend(
+                    flatten_element(lista_filhos[0], novo_path, base_data.copy())
+                )
+            else:
+                # Caso repetido → explode linhas
+                for item in lista_filhos:
+                    novo_path = f"{parent_path}_{nome}" if parent_path else nome
+                    resultados.extend(
+                        flatten_element(item, novo_path, base_data.copy())
+                    )
+
+        return resultados
+
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
 
-            dados_principais = {"Arquivo_Origem": filename}
-            subtags_repetidas = {}
+            linhas = flatten_element(elem)
 
-            # Percorre apenas filhos diretos da tag principal
-            for filho in list(elem):
-                nome_tag = limpar_tag(filho.tag)
-
-                # Verifica se a subtag aparece mais de uma vez
-                ocorrencias = elem.findall(f".//{nome_tag}")
-
-                if len(ocorrencias) > 1:
-                    subtags_repetidas[nome_tag] = ocorrencias
-                else:
-                    dados_principais[nome_tag] = filho.text.strip() if filho.text else ""
-
-            # Se existirem subtags repetidas
-            if subtags_repetidas:
-                for nome_subtag, lista_subtags in subtags_repetidas.items():
-                    for sub in lista_subtags:
-                        nova_linha = dados_principais.copy()
-                        nova_linha[nome_subtag] = sub.text.strip() if sub.text else ""
-                        dados_extraidos.append(nova_linha)
-            else:
-                dados_extraidos.append(dados_principais)
+            for linha in linhas:
+                linha["Arquivo_Origem"] = filename
+                dados_extraidos.append(linha)
 
     return dados_extraidos
+
 
 
 
@@ -123,5 +141,6 @@ def index():
 
 if __name__ == "__main__":
     app.run()
+
 
 
