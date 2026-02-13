@@ -25,13 +25,34 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
 
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
-            registro = {"Arquivo_Origem": filename}
-            for filho in elem.iter():
-                if filho != elem:
-                    registro[limpar_tag(filho.tag)] = filho.text.strip() if filho.text else ""
-            dados_extraidos.append(registro)
+
+            dados_principais = {"Arquivo_Origem": filename}
+            subtags_repetidas = {}
+
+            # Percorre apenas filhos diretos da tag principal
+            for filho in list(elem):
+                nome_tag = limpar_tag(filho.tag)
+
+                # Verifica se a subtag aparece mais de uma vez
+                ocorrencias = elem.findall(f".//{nome_tag}")
+
+                if len(ocorrencias) > 1:
+                    subtags_repetidas[nome_tag] = ocorrencias
+                else:
+                    dados_principais[nome_tag] = filho.text.strip() if filho.text else ""
+
+            # Se existirem subtags repetidas
+            if subtags_repetidas:
+                for nome_subtag, lista_subtags in subtags_repetidas.items():
+                    for sub in lista_subtags:
+                        nova_linha = dados_principais.copy()
+                        nova_linha[nome_subtag] = sub.text.strip() if sub.text else ""
+                        dados_extraidos.append(nova_linha)
+            else:
+                dados_extraidos.append(dados_principais)
 
     return dados_extraidos
+
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -102,4 +123,5 @@ def index():
 
 if __name__ == "__main__":
     app.run()
+
 
