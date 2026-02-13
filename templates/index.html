@@ -115,12 +115,24 @@
     const progressoMsg = document.getElementById("mensagemProgresso");
 
     form.addEventListener("submit", function() {
+
+        // Mostra mensagem de processamento
         progressoMsg.style.display = "block";
+        progressoMsg.className = "alert alert-info";
+        progressoMsg.innerHTML = "Processando... Aguarde.";
+
+        // Após pequeno intervalo, altera para download iniciado
+        setTimeout(function() {
+            progressoMsg.className = "alert alert-success";
+            progressoMsg.innerHTML = "Download iniciado.";
+        }, 2000); // 2 segundos (pode ajustar)
     });
 </script>
 
+
 </body>
 </html>
+
 
 
 
