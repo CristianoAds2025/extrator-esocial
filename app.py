@@ -1,9 +1,8 @@
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for
 import pandas as pd
 import xml.etree.ElementTree as ET
 import zipfile
 import io
-import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -21,48 +20,34 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
     try:
         root = ET.fromstring(xml_content)
     except ET.ParseError:
+        flash(f"Erro ao processar o XML do arquivo '{filename}'. Arquivo inválido.", "danger")
         return []
 
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
-
-            filhos = list(elem)
-            nomes_filhos = [limpar_tag(f.tag) for f in filhos]
-            repetidos = {n for n in nomes_filhos if nomes_filhos.count(n) > 1}
-
-            if repetidos:
-                for filho in filhos:
-                    registro = {"Arquivo_Origem": filename}
-                    registro["Tag_Pai"] = target_tag
-
-                    for sub in filho.iter():
-                        if sub != filho:
-                            registro[limpar_tag(sub.tag)] = sub.text.strip() if sub.text else ""
-
-                    dados_extraidos.append(registro)
-            else:
-                registro = {"Arquivo_Origem": filename}
-                for filho in filhos:
+            registro = {"Arquivo_Origem": filename}
+            for filho in elem.iter():
+                if filho != elem:
                     registro[limpar_tag(filho.tag)] = filho.text.strip() if filho.text else ""
-
-                dados_extraidos.append(registro)
+            dados_extraidos.append(registro)
 
     return dados_extraidos
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-
     if request.method == "POST":
 
         tag_alvo = request.form.get("tag")
         arquivos = request.files.getlist("arquivo")
 
         if not tag_alvo:
-            return jsonify({"status": "erro", "mensagem": "Informe a tag que deseja extrair."})
+            flash("Informe a tag que deseja extrair.", "warning")
+            return redirect(url_for("index"))
 
         if not arquivos or arquivos[0].filename == "":
-            return jsonify({"status": "erro", "mensagem": "Nenhum arquivo foi enviado."})
+            flash("Nenhum arquivo foi enviado.", "warning")
+            return redirect(url_for("index"))
 
         base_dados = []
 
@@ -86,48 +71,38 @@ def index():
                     )
 
                 else:
-                    return jsonify({"status": "erro", "mensagem": f"O arquivo '{nome}' não é XML nem ZIP válido."})
+                    flash(f"O arquivo '{nome}' não é XML nem ZIP válido.", "danger")
 
             except zipfile.BadZipFile:
-                return jsonify({"status": "erro", "mensagem": f"O arquivo '{nome}' está corrompido."})
+                flash(f"O arquivo '{nome}' está corrompido ou não é um ZIP válido.", "danger")
 
             except Exception as e:
-                return jsonify({"status": "erro", "mensagem": f"Erro inesperado ao processar '{nome}': {str(e)}"})
+                flash(f"Erro inesperado ao processar '{nome}': {str(e)}", "danger")
 
         if base_dados:
-
             df = pd.DataFrame(base_dados)
+            output = io.BytesIO()
+            df.to_excel(output, index=False)
+            output.seek(0)
 
-            arquivo_nome = f"consolidado_{tag_alvo}.xlsx"
-            caminho = f"/tmp/{arquivo_nome}"
+            flash(f"{len(base_dados)} registro(s) encontrado(s) para a tag '{tag_alvo}'.", "success")
 
-            df.to_excel(caminho, index=False)
-
-            return jsonify({
-                "status": "ok",
-                "quantidade": len(base_dados),
-                "arquivo": arquivo_nome
-            })
+            return send_file(
+                output,
+                download_name=f"consolidado_{tag_alvo}.xlsx",
+                as_attachment=True
+            )
 
         else:
-            return jsonify({
-                "status": "vazio",
-                "mensagem": f"Nenhum dado encontrado para a tag '{tag_alvo}'."
-            })
+            flash(f"Nenhum dado encontrado para a tag '{tag_alvo}' nos arquivos enviados.", "warning")
+            return redirect(url_for("index"))
 
     return render_template("index.html")
 
 
-@app.route("/download/<nome>")
-def download(nome):
-    caminho = f"/tmp/{nome}"
-    if os.path.exists(caminho):
-        return send_file(caminho, as_attachment=True)
-    return redirect(url_for("index"))
-
-
 if __name__ == "__main__":
     app.run()
+
 
 
 
