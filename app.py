@@ -23,44 +23,40 @@ def extrair_dados_da_tag(xml_content, filename, target_tag):
         flash(f"Erro ao processar o XML do arquivo '{filename}'. Arquivo inválido.", "danger")
         return []
 
-    def explode_element(element, parent_data=None, prefix=""):
-        if parent_data is None:
-            parent_data = {}
+    def explode_element(element, parent_data=None):
+    if parent_data is None:
+        parent_data = {}
 
-        children = list(element)
+    children = list(element)
 
-        # Se não tem filhos → é folha
-        if not children:
-            parent_data[prefix] = element.text.strip() if element.text else ""
-            return [parent_data]
+    # Se não tem filhos → é folha
+    if not children:
+        parent_data[limpar_tag(element.tag)] = element.text.strip() if element.text else ""
+        return [parent_data]
 
-        # Agrupar filhos por nome
-        agrupados = {}
-        for child in children:
-            nome = limpar_tag(child.tag)
-            agrupados.setdefault(nome, []).append(child)
+    # Agrupar filhos por nome
+    agrupados = {}
+    for child in children:
+        nome = limpar_tag(child.tag)
+        agrupados.setdefault(nome, []).append(child)
 
-        linhas = [parent_data]
+    linhas = [parent_data]
 
-        for nome, lista in agrupados.items():
-            novas_linhas = []
+    for nome, lista in agrupados.items():
+        novas_linhas = []
 
-            for linha in linhas:
-                if len(lista) == 1:
-                    # Filho único
-                    novo_prefixo = f"{prefix}_{nome}" if prefix else nome
-                    resultado = explode_element(lista[0], linha.copy(), novo_prefixo)
+        for linha in linhas:
+            if len(lista) == 1:
+                resultado = explode_element(lista[0], linha.copy())
+                novas_linhas.extend(resultado)
+            else:
+                for item in lista:
+                    resultado = explode_element(item, linha.copy())
                     novas_linhas.extend(resultado)
-                else:
-                    # Filho repetido → explode
-                    for item in lista:
-                        novo_prefixo = f"{prefix}_{nome}" if prefix else nome
-                        resultado = explode_element(item, linha.copy(), novo_prefixo)
-                        novas_linhas.extend(resultado)
 
-            linhas = novas_linhas
+        linhas = novas_linhas
 
-        return linhas
+    return linhas
 
     for elem in root.iter():
         if limpar_tag(elem.tag).lower() == target_tag.lower():
@@ -143,6 +139,7 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
